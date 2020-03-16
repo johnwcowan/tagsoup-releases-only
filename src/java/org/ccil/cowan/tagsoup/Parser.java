@@ -1,14 +1,15 @@
-// This file is part of TagSoup.
-// 
-// This program is free software; you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
-// (at your option) any later version.  You may also distribute
-// and/or modify it under version 3.0 of the Academic Free License.
-// 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+// This file is part of TagSoup and is Copyright 2002-2008 by John Cowan.
+//
+// TagSoup is licensed under the Apache License,
+// Version 2.0.  You may obtain a copy of this license at
+// http://www.apache.org/licenses/LICENSE-2.0 .  You may also have
+// additional legal rights not granted by this license.
+//
+// TagSoup is distributed in the hope that it will be useful, but
+// unless required by applicable law or agreed to in writing, TagSoup
+// is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+// OF ANY KIND, either express or implied; not even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 // 
 // 
 // The TagSoup parser
@@ -39,15 +40,30 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 	private Schema theSchema;
 	private Scanner theScanner;
 	private AutoDetector theAutoDetector;
-	// Feature flags
-	private boolean namespaces = true;
-	private boolean ignoreBogons = false;
-	private boolean bogonsEmpty = true;
-	private boolean defaultAttributes = true;
-	private boolean translateColons = false;
-	private boolean restartElements = true;
-	private boolean ignorableWhitespace = false;
-	private boolean CDATAElements = true;
+
+	// Default values for feature flags
+
+	private static boolean DEFAULT_NAMESPACES = true;
+	private static boolean DEFAULT_IGNORE_BOGONS = false;
+	private static boolean DEFAULT_BOGONS_EMPTY = false;
+        private static boolean DEFAULT_ROOT_BOGONS = true;
+	private static boolean DEFAULT_DEFAULT_ATTRIBUTES = true;
+	private static boolean DEFAULT_TRANSLATE_COLONS = false;
+	private static boolean DEFAULT_RESTART_ELEMENTS = true;
+	private static boolean DEFAULT_IGNORABLE_WHITESPACE = false;
+	private static boolean DEFAULT_CDATA_ELEMENTS = true;
+
+	// Feature flags.  
+
+	private boolean namespaces = DEFAULT_NAMESPACES;
+	private boolean ignoreBogons = DEFAULT_IGNORE_BOGONS;
+	private boolean bogonsEmpty = DEFAULT_BOGONS_EMPTY;
+        private boolean rootBogons = DEFAULT_ROOT_BOGONS;
+	private boolean defaultAttributes = DEFAULT_DEFAULT_ATTRIBUTES;
+	private boolean translateColons = DEFAULT_TRANSLATE_COLONS;
+	private boolean restartElements = DEFAULT_RESTART_ELEMENTS;
+	private boolean ignorableWhitespace = DEFAULT_IGNORABLE_WHITESPACE;
+	private boolean CDATAElements = DEFAULT_CDATA_ELEMENTS;
 
 	/**
 	A value of "true" indicates namespace URIs and unprefixed local
@@ -184,6 +200,13 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		"http://www.ccil.org/~cowan/tagsoup/features/bogons-empty";
 
 	/**
+	A value of "true" indicates that the parser will allow unknown
+	elements to be the root element.
+	**/
+	public final static String rootBogonsFeature =
+		"http://www.ccil.org/~cowan/tagsoup/features/root-bogons";
+
+	/**
 	A value of "true" indicates that the parser will return default
 	attribute values for missing attributes that have default values.
 	**/
@@ -250,9 +273,14 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 	public final static String autoDetectorProperty =
 		"http://www.ccil.org/~cowan/tagsoup/properties/auto-detector";
 
+	// Due to sucky Java order of initialization issues, these
+	// entries are maintained separately from the initial values of
+	// the corresponding instance variables, but care must be taken
+	// to keep them in sync.
+
 	private HashMap theFeatures = new HashMap();
 	{
-		theFeatures.put(namespacesFeature, Boolean.TRUE);
+		theFeatures.put(namespacesFeature, truthValue(DEFAULT_NAMESPACES));
 		theFeatures.put(namespacePrefixesFeature, Boolean.FALSE);
 		theFeatures.put(externalGeneralEntitiesFeature, Boolean.FALSE);
 		theFeatures.put(externalParameterEntitiesFeature, Boolean.FALSE);
@@ -268,13 +296,20 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		theFeatures.put(xmlnsURIsFeature, Boolean.FALSE);
 		theFeatures.put(xmlnsURIsFeature, Boolean.FALSE);
 		theFeatures.put(XML11Feature, Boolean.FALSE);
-		theFeatures.put(ignoreBogonsFeature, Boolean.FALSE);
-		theFeatures.put(bogonsEmptyFeature, Boolean.TRUE);
-		theFeatures.put(defaultAttributesFeature, Boolean.TRUE);
-		theFeatures.put(translateColonsFeature, Boolean.FALSE);
-		theFeatures.put(restartElementsFeature, Boolean.TRUE);
-		theFeatures.put(ignorableWhitespaceFeature, Boolean.FALSE);
-		theFeatures.put(CDATAElementsFeature, Boolean.TRUE);
+		theFeatures.put(ignoreBogonsFeature, truthValue(DEFAULT_IGNORE_BOGONS));
+		theFeatures.put(bogonsEmptyFeature, truthValue(DEFAULT_BOGONS_EMPTY));
+		theFeatures.put(rootBogonsFeature, truthValue(DEFAULT_ROOT_BOGONS));
+		theFeatures.put(defaultAttributesFeature, truthValue(DEFAULT_DEFAULT_ATTRIBUTES));
+		theFeatures.put(translateColonsFeature, truthValue(DEFAULT_TRANSLATE_COLONS));
+		theFeatures.put(restartElementsFeature, truthValue(DEFAULT_RESTART_ELEMENTS));
+		theFeatures.put(ignorableWhitespaceFeature, truthValue(DEFAULT_IGNORABLE_WHITESPACE));
+		theFeatures.put(CDATAElementsFeature, truthValue(DEFAULT_CDATA_ELEMENTS));
+		}
+
+	// Private clone of Boolean.valueOf that is guaranteed to return
+	// Boolean.TRUE or Boolean.FALSE
+	private static Boolean truthValue(boolean b) {
+		return b ? Boolean.TRUE : Boolean.FALSE;
 		}
 
 
@@ -299,6 +334,7 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		if (name.equals(namespacesFeature)) namespaces = value;
 		else if (name.equals(ignoreBogonsFeature)) ignoreBogons = value;
 		else if (name.equals(bogonsEmptyFeature)) bogonsEmpty = value;
+		else if (name.equals(rootBogonsFeature)) rootBogons = value;
 		else if (name.equals(defaultAttributesFeature)) defaultAttributes = value;
 		else if (name.equals(translateColonsFeature)) translateColons = value;
 		else if (name.equals(restartElementsFeature)) restartElements = value;
@@ -436,7 +472,7 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		theSaved = null;
 		theEntity = 0;
 		virginStack = true;
-                doctypename = doctypepublicid = doctypesystemid = null;
+                theDoctypeName = theDoctypePublicId = theDoctypeSystemId = null;
 		}
 
 	// Return a Reader based on the contents of an InputSource
@@ -479,14 +515,15 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 
 	private Element theNewElement = null;
 	private String theAttributeName = null;
-	private String doctypepublicid = null;
-	private String doctypesystemid = null;
-	private String doctypename = null;
+	private boolean theDoctypeIsPresent = false;
+	private String theDoctypePublicId = null;
+	private String theDoctypeSystemId = null;
+	private String theDoctypeName = null;
 	private String thePITarget = null;
 	private Element theStack = null;
 	private Element theSaved = null;
 	private Element thePCDATA = null;
-	private char theEntity = 0;
+	private int theEntity = 0;	// needs to support chars past U+FFFF
 
 	public void adup(char[] buff, int offset, int length) throws SAXException {
 		if (theNewElement == null || theAttributeName == null) return;
@@ -496,7 +533,9 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 
 	public void aname(char[] buff, int offset, int length) throws SAXException {
 		if (theNewElement == null) return;
-		theAttributeName = makeName(buff, offset, length);
+		// Currently we don't rely on Schema to canonicalize
+		// attribute names.
+		theAttributeName = makeName(buff, offset, length).toLowerCase();
 //		System.err.println("%% Attribute name " + theAttributeName);
 		}
 
@@ -504,20 +543,90 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		if (theNewElement == null || theAttributeName == null) return;
 		String value = new String(buff, offset, length);
 //		System.err.println("%% Attribute value [" + value + "]");
+		value = expandEntities(value);
 		theNewElement.setAttribute(theAttributeName, null, value);
 		theAttributeName = null;
 //		System.err.println("%% Aval done");
 		}
 
-	public void entity(char[] buff, int offset, int length) throws SAXException {
-		if (length < 1) {
-			theEntity = 0;
-			return;
+	// Expand entity references in attribute values selectively.
+	// Currently we expand a reference iff it is properly terminated
+	// with a semicolon.
+	private String expandEntities(String src) {
+		int refStart = -1;
+		int len = src.length();
+		char[] dst = new char[len];
+		int dstlen = 0;
+		for (int i = 0; i < len; i++) {
+			char ch = src.charAt(i);
+			dst[dstlen++] = ch;
+//			System.err.print("i = " + i + ", d = " + dstlen + ", ch = [" + ch + "] ");
+			if (ch == '&' && refStart == -1) {
+				// start of a ref excluding &
+				refStart = dstlen;
+//				System.err.println("start of ref");
+				}
+			else if (refStart == -1) {
+				// not in a ref
+//				System.err.println("not in ref");
+				}
+			else if (Character.isLetter(ch) ||
+					Character.isDigit(ch) ||
+					ch == '#') {
+				// valid entity char
+//				System.err.println("valid");
+				}
+			else if (ch == ';') {
+				// properly terminated ref
+//				System.err.print("got [" + new String(dst, refStart, dstlen-refStart-1) + "]");
+				int ent = lookupEntity(dst, refStart, dstlen - refStart - 1);
+//				System.err.println(" = " + ent);
+				if (ent > 0xFFFF) {
+					ent -= 0x10000;
+					dst[refStart - 1] = (char)((ent>>10) + 0xD800);
+					dst[refStart] = (char)((ent&0x3FF) + 0xDC00);
+					dstlen = refStart + 1;
+					}
+				else if (ent != 0) {
+					dst[refStart - 1] = (char)ent;
+					dstlen = refStart;
+					}
+				refStart = -1;
+				}
+			else {
+				// improperly terminated ref
+//				System.err.println("end of ref");
+				refStart = -1;
+				}
 			}
+		return new String(dst, 0, dstlen);
+		}
+
+	public void entity(char[] buff, int offset, int length) throws SAXException {
+		theEntity = lookupEntity(buff, offset, length);
+		}
+
+	// Process numeric character references,
+	// deferring to the schema for named ones.
+	private int lookupEntity(char[] buff, int offset, int length) {
+		int result = 0;
+		if (length < 1) return result;
 //		System.err.println("%% Entity at " + offset + " " + length);
-		String name = new String(buff, offset, length);
-//		System.err.println("%% Got entity [" + name + "]");
-		theEntity = theSchema.getEntity(name);
+//		System.err.println("%% Got entity [" + new String(buff, offset, length) + "]");
+		if (buff[offset] == '#') {
+                        if (length > 1 && (buff[offset+1] == 'x'
+                                        || buff[offset+1] == 'X')) {
+                                try {
+                                        return Integer.parseInt(new String(buff, offset + 2, length - 2), 16);
+                                        }
+                                catch (NumberFormatException e) { return 0; }
+                                }
+                        try {
+                                return Integer.parseInt(new String(buff, offset + 1, length - 1), 10);
+                                }
+                        catch (NumberFormatException e) { return 0; }
+                        }
+		return theSchema.getEntity(new String(buff, offset, length));
 		}
 
 	public void eof(char[] buff, int offset, int length) throws SAXException {
@@ -565,8 +674,17 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 	public void etag_basic(char[] buff, int offset, int length) throws SAXException {
 		theNewElement = null;
 		String name;
-		if (length != 0) name = makeName(buff, offset, length);
-		else name = theStack.name();
+		if (length != 0) {
+			// Canonicalize case of name
+			name = makeName(buff, offset, length);
+//			System.err.println("got etag [" + name + "]");
+			ElementType type = theSchema.getElementType(name);
+			if (type == null) return;	// mysterious end-tag
+			name = type.name();
+			}
+		else {
+			name = theStack.name();
+			}
 //		System.err.println("%% Got end of " + name);
 
 		Element sp;
@@ -611,9 +729,24 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		String name = theStack.name();
 		String localName = theStack.localName();
 		String namespace = theStack.namespace();
+		String prefix = prefixOf(name);
+
 //		System.err.println("%% Popping " + name);
 		if (!namespaces) namespace = localName = "";
 		theContentHandler.endElement(namespace, localName, name);
+		if (foreign(prefix, namespace)) {
+			theContentHandler.endPrefixMapping(prefix);
+//			System.err.println("%% Unmapping [" + prefix + "] for elements to " + namespace);
+			}
+		Attributes atts = theStack.atts();
+		for (int i = atts.getLength() - 1; i >= 0; i--) {
+			String attNamespace = atts.getURI(i);
+			String attPrefix = prefixOf(atts.getQName(i));
+			if (foreign(attPrefix, attNamespace)) {
+				theContentHandler.endPrefixMapping(attPrefix);
+//			System.err.println("%% Unmapping [" + attPrefix + "] for attributes to " + attNamespace);
+				}
+			}
 		theStack = theStack.next();
 		}
 
@@ -634,14 +767,30 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		String name = e.name();
 		String localName = e.localName();
 		String namespace = e.namespace();
+		String prefix = prefixOf(name);
+
 //		System.err.println("%% Pushing " + name);
 		e.clean();
 		if (!namespaces) namespace = localName = "";
-                if (virginStack && localName.equalsIgnoreCase(doctypename)) {
+                if (virginStack && localName.equalsIgnoreCase(theDoctypeName)) {
                     try {
-                        theEntityResolver.resolveEntity(doctypepublicid, doctypesystemid);
+                        theEntityResolver.resolveEntity(theDoctypePublicId, theDoctypeSystemId);
                     } catch (IOException ew) { }   // Can't be thrown for root I believe.
                 }
+		if (foreign(prefix, namespace)) {
+			theContentHandler.startPrefixMapping(prefix, namespace);
+//			System.err.println("%% Mapping [" + prefix + "] for elements to " + namespace);
+			}
+		Attributes atts = e.atts();
+		int len = atts.getLength();
+		for (int i = 0; i < len; i++) {
+			String attNamespace = atts.getURI(i);
+			String attPrefix = prefixOf(atts.getQName(i));
+			if (foreign(attPrefix, attNamespace)) {
+				theContentHandler.startPrefixMapping(attPrefix, attNamespace);
+//				System.err.println("%% Mapping [" + attPrefix + "] for attributes to " + attNamespace);
+				}
+			}
 		theContentHandler.startElement(namespace, localName, name, e.atts());
 		e.setNext(theStack);
 		theStack = e;
@@ -649,6 +798,24 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		if (CDATAElements && (theStack.flags() & Schema.F_CDATA) != 0) {
 			theScanner.startCDATA();
 			}
+		}
+
+	// Get the prefix from a QName
+	private String prefixOf(String name) {
+		int i = name.indexOf(':');
+		String prefix = "";
+		if (i != -1) prefix = name.substring(0, i);
+//		System.err.println("%% " + prefix + " is prefix of " + name);
+		return prefix;
+		}
+
+	// Return true if we have a foreign name
+	private boolean foreign(String prefix, String namespace) {
+//		System.err.print("%% Testing " + prefix + " and " + namespace + " for foreignness -- ");
+		boolean foreign = !(prefix.equals("") || namespace.equals("") ||
+			namespace.equals(theSchema.getURI()));
+//		System.err.println(foreign);
+		return foreign;
 		}
 
         /**
@@ -668,6 +835,8 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		String publicid = null;
 		String[] v = split(s);
 		if (v.length > 0 && "DOCTYPE".equals(v[0])) {
+			if (theDoctypeIsPresent) return;		// one doctype only!
+			theDoctypeIsPresent = true;
 			if (v.length > 1) {
 				name = v[1];
 				if (v.length>3 && "SYSTEM".equals(v[2])) {
@@ -690,12 +859,12 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 			publicid = cleanPublicid(publicid);
 			theLexicalHandler.startDTD(name, publicid, systemid);
 			theLexicalHandler.endDTD();
-			doctypename = name;
-			doctypepublicid = publicid;
+			theDoctypeName = name;
+			theDoctypePublicId = publicid;
 		if (theScanner instanceof Locator) {    // Must resolve systemid
-                    doctypesystemid  = ((Locator)theScanner).getSystemId();
+                    theDoctypeSystemId  = ((Locator)theScanner).getSystemId();
                     try {
-                        doctypesystemid = new URL(new URL(doctypesystemid), systemid).toString();
+                        theDoctypeSystemId = new URL(new URL(theDoctypeSystemId), systemid).toString();
                     } catch (Exception e) {}
                 }
             }
@@ -791,7 +960,10 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		if (type == null) {
 			// Suppress unknown elements if ignore-bogons is on
 			if (ignoreBogons) return;
-			theSchema.elementType(name, bogonsEmpty ? Schema.M_EMPTY : Schema.M_ANY, Schema.M_ANY, 0);
+			int bogonModel = bogonsEmpty ? Schema.M_EMPTY : Schema.M_ANY;
+			int bogonMemberOf = rootBogons ? Schema.M_ANY : (Schema.M_ANY & ~ Schema.M_ROOT);
+			theSchema.elementType(name, bogonModel, bogonMemberOf, 0);
+			if (!rootBogons) theSchema.parent(name, theSchema.rootElementType().name());
 			type = theSchema.getElementType(name);
 			}
 
@@ -825,13 +997,13 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 
 	public void pitarget(char[] buff, int offset, int length) throws SAXException {
 		if (theNewElement != null) return;
-		thePITarget = makeName(buff, offset, length);
+		thePITarget = makeName(buff, offset, length).replace(':', '_');
 		}
 
 	public void pi(char[] buff, int offset, int length) throws SAXException {
 		if (theNewElement != null || thePITarget == null) return;
-		if (thePITarget.toLowerCase().equals("xml")) return;
-//		if (length > 0 && buff[length - 1] == '?') System.out.println("%% Removing ? from PI");
+		if ("xml".equalsIgnoreCase(thePITarget)) return;
+//		if (length > 0 && buff[length - 1] == '?') System.err.println("%% Removing ? from PI");
 		if (length > 0 && buff[length - 1] == '?') length--;	// remove trailing ?
 		theContentHandler.processingInstruction(thePITarget,
 			new String(buff, offset, length));
@@ -893,18 +1065,20 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		theNewElement = null;
 		}
 
-	public char getEntity() {
+	public int getEntity() {
 		return theEntity;
 		}
 
-	// Return the argument as a valid XML name, lowercased
+	// Return the argument as a valid XML name
+	// This no longer lowercases the result: we depend on Schema to
+	// canonicalize case.
 	private String makeName(char[] buff, int offset, int length) {
 		StringBuffer dst = new StringBuffer(length + 2);
 		boolean seenColon = false;
 		boolean start = true;
 //		String src = new String(buff, offset, length); // DEBUG
 		for (; length-- > 0; offset++) {
-			char ch = Character.toLowerCase(buff[offset]);
+			char ch = buff[offset];
 			if (Character.isLetter(ch) || ch == '_') {
 				start = false;
 				dst.append(ch);

@@ -1,14 +1,15 @@
-// This file is part of TagSoup.
-// 
-// This program is free software; you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
-// (at your option) any later version.  You may also distribute
-// and/or modify it under version 3.0 of the Academic Free License.
-// 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+// This file is part of TagSoup and is Copyright 2002-2008 by John Cowan.
+//
+// TagSoup is licensed under the Apache License,
+// Version 2.0.  You may obtain a copy of this license at
+// http://www.apache.org/licenses/LICENSE-2.0 .  You may also have
+// additional legal rights not granted by this license.
+//
+// TagSoup is distributed in the hope that it will be useful, but
+// unless required by applicable law or agreed to in writing, TagSoup
+// is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+// OF ANY KIND, either express or implied; not even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 // 
 // 
 // Model of document
@@ -40,6 +41,7 @@ public abstract class Schema {
 
 	private String theURI = "";
 	private String thePrefix = "";
+	private ElementType theRoot = null;
 
 	/**
 	Add or replace an element type for this schema.
@@ -51,7 +53,16 @@ public abstract class Schema {
 
 	public void elementType(String name, int model, int memberOf, int flags) {
 		ElementType e = new ElementType(name, model, memberOf, flags, this);
-		theElementTypes.put(name, e);
+		theElementTypes.put(name.toLowerCase(), e);
+		if (memberOf == M_ROOT) theRoot = e;
+		}
+
+	/**
+	Get the root element of this schema
+	**/
+
+	public ElementType rootElementType() {
+		return theRoot;
 		}
 
 	/**
@@ -97,8 +108,8 @@ public abstract class Schema {
 	@param value Value of the entity
 	**/
 
-	public void entity(String name, char value) {
-		theEntities.put(name, new Character(value));
+	public void entity(String name, int value) {
+		theEntities.put(name, new Integer(value));
 		}
 
 	/**
@@ -108,7 +119,7 @@ public abstract class Schema {
 	**/
 
 	public ElementType getElementType(String name) {
-		return (ElementType)(theElementTypes.get(name));
+		return (ElementType)(theElementTypes.get(name.toLowerCase()));
 		}
 
 	/**
@@ -117,27 +128,11 @@ public abstract class Schema {
 	@return The corresponding character, or 0 if none
 	**/
 
-	public char getEntity(String name) {
+	public int getEntity(String name) {
 //		System.err.println("%% Looking up entity " + name);
-		if (name.length() == 0) return 0;
-		if (name.charAt(0) == '#') {
-			if (name.length() > 1 && (name.charAt(1) == 'x'
-					|| name.charAt(1) == 'X')) {
-				try {
-					return (char)Integer.parseInt(name.substring(2), 16);
-					}
-				catch (NumberFormatException e) { return 0; }
-				}
-			try {
-				return (char)Integer.parseInt(name.substring(1));
-				}
-			catch (NumberFormatException e) { return 0; }
-			}
-		Character c = (Character)theEntities.get(name);
-		if (c == null) {
-			return 0;
-			}
-		return c.charValue();
+		Integer ch = (Integer)theEntities.get(name);
+		if (ch == null) return 0;
+		return ch.intValue();
 		}
 
 	/**

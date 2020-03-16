@@ -1,14 +1,15 @@
-// This file is part of TagSoup.
-// 
-// This program is free software; you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
-// (at your option) any later version.  You may also distribute
-// and/or modify it under version 3.0 of the Academic Free License.
-// 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+// This file is part of TagSoup and is Copyright 2002-2008 by John Cowan.
+//
+// TagSoup is licensed under the Apache License,
+// Version 2.0.  You may obtain a copy of this license at
+// http://www.apache.org/licenses/LICENSE-2.0 .  You may also have
+// additional legal rights not granted by this license.
+//
+// TagSoup is distributed in the hope that it will be useful, but
+// unless required by applicable law or agreed to in writing, TagSoup
+// is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+// OF ANY KIND, either express or implied; not even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 // 
 // 
 // The TagSoup command line UI
@@ -36,11 +37,15 @@ public class CommandLine {
 		options.put("--nons", Boolean.FALSE);	// no namespaces
 		options.put("--nobogons", Boolean.FALSE);  // suppress unknown elements
 		options.put("--any", Boolean.FALSE);	// unknowns have ANY content model
+		options.put("--emptybogons", Boolean.FALSE);	// unknowns have EMPTY content model
+		options.put("--norootbogons", Boolean.FALSE);	// unknowns can't be the root
 		options.put("--pyxin", Boolean.FALSE);	// input is PYX
 		options.put("--lexical", Boolean.FALSE); // output comments
 		options.put("--pyx", Boolean.FALSE);	// output is PYX
 		options.put("--html", Boolean.FALSE);	// output is HTML
 		options.put("--method=", Boolean.FALSE); // output method
+		options.put("--doctype-public=", Boolean.FALSE); // override public id
+		options.put("--doctype-system=", Boolean.FALSE); // override system id
 		options.put("--output-encoding=", Boolean.FALSE); // output encoding
 		options.put("--omit-xml-declaration", Boolean.FALSE); // omit XML decl
 		options.put("--encoding=", Boolean.FALSE); // specify encoding
@@ -63,7 +68,7 @@ public class CommandLine {
 			return;
 			}
 		if (hasOption(options, "--version")) {
-			System.err.println("TagSoup version 1.1.3");
+			System.err.println("TagSoup version 1.2");
 			return;
 			}
 		if (argv.length == optind) {
@@ -147,6 +152,13 @@ public class CommandLine {
 		if (hasOption(options, "--any")) {
 			r.setFeature(Parser.bogonsEmptyFeature, false);
 			}
+		else if (hasOption(options, "--emptybogons")) {
+			r.setFeature(Parser.bogonsEmptyFeature, true);
+			}
+
+		if (hasOption(options, "--norootbogons")) {
+			r.setFeature(Parser.rootBogonsFeature, false);
+			}
 
 		if (hasOption(options, "--nodefaults")) {
 			r.setFeature(Parser.defaultAttributesFeature, false);
@@ -211,6 +223,18 @@ public class CommandLine {
 			String method = (String)options.get("--method=");
 			if (method != null) {
 				x.setOutputProperty(XMLWriter.METHOD, method);
+				}
+			}
+		if (hasOption(options, "--doctype-public=")) {
+			String doctype_public = (String)options.get("--doctype-public=");
+			if (doctype_public != null) {
+				x.setOutputProperty(XMLWriter.DOCTYPE_PUBLIC, doctype_public);
+				}
+			}
+		if (hasOption(options, "--doctype-system=")) {
+			String doctype_system = (String)options.get("--doctype-system=");
+			if (doctype_system != null) {
+				x.setOutputProperty(XMLWriter.DOCTYPE_SYSTEM, doctype_system);
 				}
 			}
 		if (hasOption(options, "--output-encoding=")) {
