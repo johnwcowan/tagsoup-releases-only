@@ -46,6 +46,7 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 	private boolean defaultAttributes = true;
 	private boolean translateColons = false;
 	private boolean restartElements = true;
+	private boolean ignorableWhitespace = false;
 
 	/**
 	A value of "true" indicates namespace URIs and unprefixed local
@@ -203,6 +204,16 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		"http://www.ccil.org/~cowan/tagsoup/features/restart-elements";
 
 	/**
+	A value of "true" indicates that the parser will 
+	transmit whitespace in element-only content via the SAX
+	ignorableWhitespace callback.  Normally this is not done,
+	because HTML is an SGML application and SGML suppresses
+	such whitespace.
+	**/
+	public final static String ignorableWhitespaceFeature =
+		"http://www.ccil.org/~cowan/tagsoup/features/ignorable-whitespace";
+
+	/**
 	Used to see some syntax events that are essential in some
 	applications: comments, CDATA delimiters, selected general
 	entity inclusions, and the start and end of the DTD (and
@@ -253,6 +264,7 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		theFeatures.put(defaultAttributesFeature, Boolean.TRUE);
 		theFeatures.put(translateColonsFeature, Boolean.FALSE);
 		theFeatures.put(restartElementsFeature, Boolean.TRUE);
+		theFeatures.put(ignorableWhitespaceFeature, Boolean.FALSE);
 		}
 
 
@@ -280,6 +292,7 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		else if (name.equals(defaultAttributesFeature)) defaultAttributes = value;
 		else if (name.equals(translateColonsFeature)) translateColons = value;
 		else if (name.equals(restartElementsFeature)) restartElements = value;
+		else if (name.equals(ignorableWhitespaceFeature)) ignorableWhitespace = value;
 		}
 
 	public Object getProperty (String name)
@@ -386,8 +399,8 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		theScanner.scan(r, this);
 		}
 
-	public void parse (String systemId) throws IOException, SAXException {
-		parse(new InputSource(systemId));
+	public void parse (String systemid) throws IOException, SAXException {
+		parse(new InputSource(systemid));
 		}
 
 	// Sets up instance variables that haven't been set by setFeature
@@ -418,10 +431,10 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		Reader r = s.getCharacterStream();
 		InputStream i = s.getByteStream();
 		String encoding = s.getEncoding();
-		String publicId = s.getPublicId();
-		String systemId = s.getSystemId();
+		String publicid = s.getPublicId();
+		String systemid = s.getSystemId();
 		if (r == null) {
-			if (i == null) i = getInputStream(publicId, systemId);
+			if (i == null) i = getInputStream(publicid, systemid);
 //			i = new BufferedInputStream(i);
 			if (encoding == null) {
 				r = theAutoDetector.autoDetectingReader(i);
@@ -439,20 +452,22 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		return r;
 		}
 
-	// Get an InputStream based on a publicId and a systemId
-	private InputStream getInputStream(String publicId, String systemId) throws IOException, SAXException {
+	// Get an InputStream based on a publicid and a systemid
+	private InputStream getInputStream(String publicid, String systemid) throws IOException, SAXException {
 		URL basis = new URL("file", "", System.getProperty("user.dir") + "/.");
-		URL url = new URL(basis, systemId);
+		URL url = new URL(basis, systemid);
 		URLConnection c = url.openConnection();
 		return c.getInputStream();
 		}
-		// We don't process publicIds (who uses them anyhow?)
+		// We don't process publicids (who uses them anyhow?)
 
 	// ScanHandler implementation
 
 	private Element theNewElement = null;
 	private String theAttributeName = null;
-        private String doctypepublicid, doctypesystemid, doctypename;
+	private String doctypepublicid = null;
+	private String doctypesystemid = null;
+	private String doctypename = null;
 	private String thePITarget = null;
 	private Element theStack = null;
 	private Element theSaved = null;
@@ -662,6 +677,7 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		publicid = trimquotes(publicid);
 		systemid = trimquotes(systemid);
 		if (name != null) {
+			publicid = cleanPublicid(publicid);
 			theLexicalHandler.startDTD(name, publicid, systemid);
 			theLexicalHandler.endDTD();
 			doctypename = name;
@@ -675,9 +691,7 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
             }
         }
 
-        /**
-         * If the String is quoted, trim the quotes.
-         */
+	// If the String is quoted, trim the quotes.
 	private static String trimquotes(String in) {
 		if (in == null) return in;
 		int length = in.length();
@@ -690,10 +704,8 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		return in;
 		}
 
-        /**
-         * Split the supplied String into words or phrases seperated by spaces.
-         * Recognises quotes around a phrase and doesn't split it.
-         */
+	// Split the supplied String into words or phrases seperated by spaces.
+	// Recognises quotes around a phrase and doesn't split it.
 	private static String[] split(String val) throws IllegalArgumentException {
 		val = val.trim();
 		if (val.length() == 0) {
@@ -735,6 +747,22 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		}
         }
 
+	// Replace junk in publicids with spaces
+	private static String legal =
+		" \r\nabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-'()+,./:=?;!*#@$_%";
+
+	private String cleanPublicid(String src) {
+		if (src == null) return null;
+		int len = src.length();
+		StringBuffer dst = new StringBuffer(len);
+		for (int i = 0; i < len; i++) {
+			char ch = src.charAt(i);
+			if (legal.indexOf(ch) != -1) dst.append(ch);
+			else dst.append(' ');
+			}
+		return dst.toString();
+		}
+
 
 	public void gi(char[] buff, int offset, int length) throws SAXException {
 		if (theNewElement != null) return;
@@ -760,9 +788,15 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 				allWhite = false;
 				}
 			}
-		if (allWhite && !theStack.canContain(thePCDATA)) return;
-		rectify(thePCDATA);
-		theContentHandler.characters(buff, offset, length);
+		if (allWhite && !theStack.canContain(thePCDATA)) {
+			if (ignorableWhitespace) {
+				theContentHandler.ignorableWhitespace(buff, offset, length);
+				}
+			}
+		else {
+			rectify(thePCDATA);
+			theContentHandler.characters(buff, offset, length);
+			}
 		}
 
 	public void pitarget(char[] buff, int offset, int length) throws SAXException {
@@ -798,8 +832,28 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		etag_basic(buff, offset, length);
 		}
 
+	// Comment buffer is twice the size of the output buffer
+	private char[] theCommentBuffer = new char[2000];
 	public void cmnt(char[] buff, int offset, int length) throws SAXException {
-		theLexicalHandler.comment(buff, offset, length);
+		int postOffset = offset + length;
+		if (theCommentBuffer.length < postOffset * 2) {
+			theCommentBuffer = new char[postOffset * 2];
+			}
+		int newSpaces = 0;
+		for (int i = offset, j = offset; i < postOffset; i++, j++) {
+			if (i == offset && buff[i] == '-') {
+				theCommentBuffer[j++] = ' ';
+				newSpaces++;
+				}
+			theCommentBuffer[j] = buff[i];
+			if (buff[i] == '-') {
+				if (i == postOffset || buff[i+1] == '-') {
+					theCommentBuffer[j++] = ' ';
+					newSpaces++;
+					}
+				}
+			}
+		theLexicalHandler.comment(theCommentBuffer, offset, length + newSpaces);
 		}
 
 	// Rectify the stack, pushing and popping as needed
@@ -874,7 +928,7 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 	public void endDTD() throws SAXException { }
 	public void endEntity(String name) throws SAXException { }
 	public void startCDATA() throws SAXException { }
-	public void startDTD(String name, String publicId, String systemId) throws SAXException { }
+	public void startDTD(String name, String publicid, String systemid) throws SAXException { }
 	public void startEntity(String name) throws SAXException { }
 
 	}
