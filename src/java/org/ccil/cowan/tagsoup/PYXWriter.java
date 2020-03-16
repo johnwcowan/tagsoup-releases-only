@@ -4,7 +4,7 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.  You may also distribute
-// and/or modify it under version 2.1 of the Academic Free License.
+// and/or modify it under version 3.0 of the Academic Free License.
 // 
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -78,6 +78,10 @@ public class PYXWriter
 		theWriter.print('(');
 		theWriter.write(buff, offset, length);
 		theWriter.println();
+		}
+
+	public void cdsect(char[] buff, int offset, int length) throws SAXException {
+		pcdata(buff, offset, length);
 		}
 
 	public void pcdata(char[] buff, int offset, int length) throws SAXException {

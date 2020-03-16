@@ -4,7 +4,7 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.  You may also distribute
-// and/or modify it under version 2.1 of the Academic Free License.
+// and/or modify it under version 3.0 of the Academic Free License.
 // 
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -47,6 +47,7 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 	private boolean translateColons = false;
 	private boolean restartElements = true;
 	private boolean ignorableWhitespace = false;
+	private boolean CDATAElements = true;
 
 	/**
 	A value of "true" indicates namespace URIs and unprefixed local
@@ -212,6 +213,14 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 	**/
 	public final static String ignorableWhitespaceFeature =
 		"http://www.ccil.org/~cowan/tagsoup/features/ignorable-whitespace";
+
+	/**
+	A value of "true" indicates that the parser will treat CDATA
+	elements specially.  Normally true, since the input is by
+	default HTML.
+	**/
+	public final static String CDATAElementsFeature =
+		"http://www.ccil.org/~cowan/tagsoup/features/cdata-elements";
 
 	/**
 	Used to see some syntax events that are essential in some
@@ -527,7 +536,7 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		// If this is a CDATA element and the tag doesn't match,
 		// or isn't properly formed (junk after the name),
 		// restart CDATA mode and process the tag as characters.
-		if ((theStack.flags() & Schema.F_CDATA) != 0) {
+		if (CDATAElements && (theStack.flags() & Schema.F_CDATA) != 0) {
 			boolean realTag = (length == currentName.length());
 			if (realTag) {
 				for (int i = 0; i < length; i++) {
@@ -598,9 +607,6 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		String localName = theStack.localName();
 		String namespace = theStack.namespace();
 //		System.err.println("%% Popping " + name);
-		if ((theStack.flags() & Schema.F_CDATA) != 0) {
-			theLexicalHandler.endCDATA();
-			}
 		if (!namespaces) namespace = localName = "";
 		theContentHandler.endElement(namespace, localName, name);
 		theStack = theStack.next();
@@ -635,9 +641,8 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 		e.setNext(theStack);
 		theStack = e;
 		virginStack = false;
-		if ((theStack.flags() & Schema.F_CDATA) != 0) {
+		if (CDATAElements && (theStack.flags() & Schema.F_CDATA) != 0) {
 			theScanner.startCDATA();
-			theLexicalHandler.startCDATA();
 			}
 		}
 
@@ -789,6 +794,11 @@ public class Parser extends DefaultHandler implements ScanHandler, XMLReader, Le
 //		System.err.println("%% Got GI " + theNewElement.name());
 		}
 
+	public void cdsect(char[] buff, int offset, int length) throws SAXException {
+		theLexicalHandler.startCDATA();
+		pcdata(buff, offset, length);
+		theLexicalHandler.endCDATA();
+		}
 	public void pcdata(char[] buff, int offset, int length) throws SAXException {
 		if (length == 0) return;
 		boolean allWhite = true;

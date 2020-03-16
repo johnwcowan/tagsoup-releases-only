@@ -4,7 +4,7 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.  You may also distribute
-// and/or modify it under version 2.1 of the Academic Free License.
+// and/or modify it under version 3.0 of the Academic Free License.
 // 
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -40,8 +40,14 @@ public interface ScanHandler {
 	public void aval(char[] buff, int offset, int length) throws SAXException;
 
 	/**
+	  * Reports the content of a CDATA section (not a CDATA element)
+	  */
+	public void cdsect(char[] buff, int offset, int length) throws SAXException;
+
+	/**
          * Reports a <!....> declaration - typically a DOCTYPE
          */
+
 	public void decl(char[] buff, int offset, int length) throws SAXException;
 
 	/**

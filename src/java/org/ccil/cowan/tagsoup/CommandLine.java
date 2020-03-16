@@ -4,7 +4,7 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.  You may also distribute
-// and/or modify it under version 2.1 of the Academic Free License.
+// and/or modify it under version 3.0 of the Academic Free License.
 // 
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -63,7 +63,7 @@ public class CommandLine {
 			return;
 			}
 		if (hasOption(options, "--version")) {
-			System.err.println("TagSoup version 1.1");
+			System.err.println("TagSoup version 1.1.1");
 			return;
 			}
 		if (argv.length == optind) {
@@ -133,10 +133,7 @@ public class CommandLine {
 		r.setProperty(Parser.schemaProperty, theSchema);
 
 		if (hasOption(options, "--nocdata")) {
-			ElementType script = theSchema.getElementType("script");
-			script.setFlags(0);
-			ElementType style = theSchema.getElementType("style");
-			style.setFlags(0);
+			r.setFeature(Parser.CDATAElementsFeature, false);
 			}
 
 		if (hasOption(options, "--nons") || hasOption(options, "--html")) {
